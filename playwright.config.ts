@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const ATTACH_SCREENSHOTS = process.env.ATTACH_SCREENSHOTS?.toLowerCase() === 'true';
+
 function resolveBaseURL(): string {
   if (process.env.BASE_URL) return process.env.BASE_URL;
   const env = (process.env.TTA_ENV || 'qa').toLowerCase();
@@ -42,21 +44,35 @@ export default defineConfig({
 
   reporter: [
     ['html'],
-    ['list']
+    ['list'],
   ],
 
   use: {
     baseURL: resolveBaseURL(),
-    screenshot: 'only-on-failure',
+    headless: false,
+    screenshot: ATTACH_SCREENSHOTS ? 'only-on-failure' : 'off',
     video: 'on',
-    trace: 'on-first-retry'
+    trace: 'on'
   },
 
   projects: [
     {
       name: 'chromium',
+      testDir: './tests',
+      // API specs live under src/tests/apisTests but belong to the `api` project.
+      // Without this they would also run here, against the UI baseURL and a real browser.
+      testIgnore: '**/apisTests/**',
       use: {
-        ...devices['Desktop Chrome']
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 }
+      }
+    },
+    {
+      name: 'api',
+      testDir: './tests/apisTests',
+      // No devices[...] spread, so no browser is launched for pure HTTP tests.
+      use: {
+        baseURL: process.env.API_BASE_URL || 'https://restful-booker.herokuapp.com'
       }
     }
   ]
